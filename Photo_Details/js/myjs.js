@@ -60,7 +60,7 @@ function showDetails() {
         "AdaLovelace": "images/AdaLovelace.jpg",
         "madhu": "images/madhu.jpg",
         "vaishnavi": "images/vaishnavi.jpg",
-        "bhavya":"images/bhavya.jpg"
+        "bhavya":"images/bhavya.png"
     };
 
     // Mapping details
