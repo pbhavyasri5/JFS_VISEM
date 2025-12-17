@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Faculty Timetable</title>
+ <style>
+  table { 
+    border-collapse: collapse; 
+    width: 100%; 
+  }
+
+  th, td { 
+    border: 1px solid #000; 
+    padding: 10px; 
+    text-align: center; 
+    vertical-align: middle;
+  }
+
+  .header { 
+    background: #b9e4f2; 
+    font-weight: bold; 
+  }
+
+  /* LUNCH column exactly like image */
+  .lunch-col {
+    background: #b9e4f2;
+    font-weight: bold;
+    text-align: center;
+    vertical-align: middle;
+    width: 60px;
+  }
+
+  .lunch-text {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    letter-spacing: 2px;
+  }
+
+  #tableWrapper { 
+    display: none; 
+    margin-top: 16px; 
+  }
+</style>
+
+</head>
+<body>
+  <!-- Step 1: upload CSV -->
+  <h3>Step 1: Upload CSV</h3>
+  <input type="file" id="csvFileInput" accept=".csv" />
+
+  <!-- Step 2: select faculty -->
+  <h3>Step 2: Select Faculty</h3>
+  <select id="facultySelect" disabled>
+    <option value="">-- Upload CSV first --</option>
+  </select>
+
+  <!-- Step 3: timetable (hidden initially) -->
+  <div id="tableWrapper">
+    <h3>Timetable</h3>
+    <table id="timetable">
+      <thead>
+       <tr>
+  <th class="header">DAY</th>
+  <th class="header">FN</th>
+  <th class="header lunch-col" rowspan="7">LUNCH</th>
+  <th class="header">AN</th>
+</tr>
+
+      </thead>
+      <tbody id="ttBody">
+        <!-- rows will be created by JS -->
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    const days = ['MON','TUE','WED','THU','FRI','SAT']; // must match DAY in CSV
+    let allRows = [];
+
+    const fileInput = document.getElementById('csvFileInput');
+    const facultySelect = document.getElementById('facultySelect');
+    const ttBody = document.getElementById('ttBody');
+    const tableWrapper = document.getElementById('tableWrapper');
+
+    // Build MON–SAT grid with single vertical lunch column
+    function buildEmptyGrid() {
+      ttBody.innerHTML = '';
+      days.forEach((day, index) => {
+        const tr = document.createElement('tr');
+
+        // DAY cell
+        const dayTd = document.createElement('td');
+        dayTd.textContent = day;
+        tr.appendChild(dayTd);
+
+        // FN cell
+        const fnTd = document.createElement('td');
+        fnTd.className = 'fn-cell';
+        tr.appendChild(fnTd);
+
+        // Only first row contains LUNCH with rowspan over all days
+        if (index === 0) {
+          const lunchTd = document.createElement('td');
+          lunchTd.className = 'lunch-col';
+          lunchTd.rowSpan = days.length;
+          lunchTd.innerHTML = 'L<br>U<br>N<br>C<br>H';
+          tr.appendChild(lunchTd);
+        }
+
+        // AN cell
+        const anTd = document.createElement('td');
+        anTd.className = 'an-cell';
+        tr.appendChild(anTd);
+
+        ttBody.appendChild(tr);
+      });
+    }
+
+    // Step 1: handle CSV upload
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = e => {
+        const text = e.target.result;
+        allRows = parseCSV(text);  // expects header row from your CSV [file:6]
+        populateFacultyDropdown(allRows);
+      };
+      reader.readAsText(file);
+    });
+
+    // Simple CSV parser matching your file format (no quoted commas) [file:6]
+    function parseCSV(text) {
+      const lines = text.trim().split('\n');
+      const headers = lines[0].split(',').map(h => h.trim());
+      return lines.slice(1).map(line => {
+        const cols = line.split(',');
+        const row = {};
+        headers.forEach((h, i) => {
+          row[h] = (cols[i] || '').trim();
+        });
+        return row;
+      });
+    }
+
+    // Step 2: fill faculty select from FACULTY column [file:6]
+    function populateFacultyDropdown(rows) {
+      facultySelect.innerHTML = '<option value="">-- Select Faculty --</option>';
+      const set = new Set();
+      rows.forEach(r => { if (r.FACULTY) set.add(r.FACULTY); });
+
+      set.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        facultySelect.appendChild(opt);
+      });
+
+      facultySelect.disabled = false;
+
+      facultySelect.onchange = () => {
+        const f = facultySelect.value;
+        if (!f) {
+          tableWrapper.style.display = 'none';
+          return;
+        }
+        // reset grid and show table
+        buildEmptyGrid();
+        const rowsForFac = allRows.filter(r => r.FACULTY === f);
+        fillTimetable(rowsForFac);
+        tableWrapper.style.display = 'block';
+      };
+    }
+
+    // Step 3: place FN/AN entries into cells for each DAY [file:6]
+    function fillTimetable(rows) {
+      rows.forEach(r => {
+        const dayIndex = days.indexOf(r.DAY); // DAY like MON,TUE,... [file:6]
+        if (dayIndex === -1) return;
+
+        const rowEl = ttBody.rows[dayIndex];
+        const text = `${r.COURSE}\nRoom: ${r.ROOM}\nFaculty:${r.FACULTY}`;
+
+        if (r.SESSION === 'FN') {
+          rowEl.querySelector('.fn-cell').innerText = text;
+        } else if (r.SESSION === 'AN') {
+          rowEl.querySelector('.an-cell').innerText = text;
+        }
+      });
+    }
+  </script>
+</body>
+</html>
